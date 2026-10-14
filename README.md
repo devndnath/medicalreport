@@ -28,7 +28,7 @@ Excel-based workflow it replaces.
 
 ## 3. Installation
 
-Requires PHP 8.2+, Composer, and MySQL 8+ (or MariaDB 10.5+).
+Requires PHP 8.3+, Composer, and MySQL 8+ (or MariaDB 10.5+). Built against Laravel 12 (the current stable line as of writing).
 
 ```bash
 composer install
@@ -51,7 +51,7 @@ Log in as Admin or Store Officer → **Import Workbook** → upload the original
 
 ## 4. Deployment guide (production)
 
-1. Provision PHP 8.2+, MySQL, and a web server (Nginx/Apache) pointing its document root at `public/`.
+1. Provision PHP 8.3+, MySQL, and a web server (Nginx/Apache) pointing its document root at `public/`.
 2. `composer install --no-dev --optimize-autoloader`
 3. Set `.env`: `APP_ENV=production`, `APP_DEBUG=false`, real `DB_*` credentials, a generated `APP_KEY`.
 4. `php artisan migrate --force` (do **not** re-run `--seed` against a live database after the first setup).
@@ -89,3 +89,5 @@ file was syntax-checked (`php -l`) and the code follows standard Laravel
 as the first step — if anything in `composer.json` needs a version nudge for
 your PHP version, Composer's own error message will say exactly which
 package.
+
+**Update (post-review):** `composer.json` originally targeted Laravel 11, which `composer install`'s security audit now blocks — every 11.x release (and 12.x releases below 12.60) is affected by several disclosed advisories (including CVE-2026-48019), so Composer refuses to resolve them. The requirements now target **Laravel ^12.60** (PHP 8.3+) and **Laravel Excel v4** (which itself requires Laravel 12+/PHP 8.3+); `app/Exports/ArrayReportExport.php` was updated with the native return types v4 requires. If your hosting is stuck on PHP 8.2, you'd need to stay on Laravel 11 and run `composer install` with `--ignore-platform-req` is *not* the fix — instead add the specific advisory IDs to `"audit": {"ignore": [...]}` in `composer.json` and accept the known risk, or wait for a patched 11.x release.
