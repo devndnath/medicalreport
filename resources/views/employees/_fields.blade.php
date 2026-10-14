@@ -12,5 +12,5 @@
 @foreach(['active','inactive','resigned','terminated'] as $s)<option value="{{ $s }}" @selected(old('employment_status',$e->employment_status ?? 'active')===$s)>{{ ucfirst($s) }}</option>@endforeach
 </select></div>
 <div><label class="block text-xs text-slate-500 mb-1">Phone</label><input name="phone" value="{{ old('phone', $e->phone ?? '') }}" class="w-full rounded-lg border border-slate-300 text-sm px-3 py-2"></div>
-<div><label class="block text-xs text-slate-500 mb-1">Joining Date</label><input type="date" name="joining_date" value="{{ old('joining_date', $e->joining_date?->format('Y-m-d') ?? '') }}" class="w-full rounded-lg border border-slate-300 text-sm px-3 py-2"></div>
+<div><label class="block text-xs text-slate-500 mb-1">Joining Date</label><input type="date" name="joining_date" value="{{ old('joining_date', $e?->joining_date?->format('Y-m-d') ?? '') }}" class="w-full rounded-lg border border-slate-300 text-sm px-3 py-2"></div>
 <div class="md:col-span-2"><label class="block text-xs text-slate-500 mb-1">Remarks</label><textarea name="remarks" rows="2" class="w-full rounded-lg border border-slate-300 text-sm px-3 py-2">{{ old('remarks', $e->remarks ?? '') }}</textarea></div>
