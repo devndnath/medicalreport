@@ -8,16 +8,20 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Core data every installation needs.
         $this->call([
             RoleSeeder::class,
             FactorySeeder::class,
             UserSeeder::class,
+            ApplicationSettingSeeder::class,
             DepartmentSeeder::class,
-            EmployeeSeeder::class,
             MedicineCategorySeeder::class,
             MedicineSeeder::class,
-            SupplierSeeder::class,
-            OpeningStockSeeder::class,
         ]);
+
+        // Sample employees, suppliers, stock and transactions — never in production.
+        if (! app()->isProduction()) {
+            $this->call(DemoDataSeeder::class);
+        }
     }
 }
