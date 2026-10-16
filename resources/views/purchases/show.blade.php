@@ -15,7 +15,7 @@
 
 <x-card title="Purchase Details" class="mb-6">
     <dl class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div><dt class="text-slate-500">Supplier</dt><dd class="font-medium">{{ $purchase->supplier->name }}</dd></div>
+        <div><dt class="text-slate-500">Received From</dt><dd class="font-medium">{{ $purchase->sourceLabel() }}</dd></div>
         <div><dt class="text-slate-500">Date</dt><dd>{{ $purchase->purchase_date->format('d-m-Y') }}</dd></div>
         <div><dt class="text-slate-500">Invoice #</dt><dd>{{ $purchase->supplier_invoice_number ?? '—' }}</dd></div>
         <div><dt class="text-slate-500">Received by</dt><dd>{{ $purchase->receivedBy->name ?? '—' }}</dd></div>

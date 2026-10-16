@@ -11,21 +11,29 @@
 <option value="">Role</option>
 @foreach($roles as $r)<option value="{{ $r->id }}">{{ $r->name }}</option>@endforeach
 </select>
+@if(isset($factories))
+<select name="factory_id" class="rounded-lg border border-slate-300 text-sm px-3 py-2">
+<option value="">Factory (leave blank for Super Admin)</option>
+@foreach($factories as $f)<option value="{{ $f->id }}">{{ $f->name }}</option>@endforeach
+</select>
+@endif
 <div class="col-span-4"><button class="bg-accent-500 text-white text-sm px-4 py-2 rounded-lg">Create User</button></div>
 </form>
 </x-card>
 <x-card>
 <table class="w-full text-sm">
-<thead><tr class="text-left text-slate-500 border-b"><th class="py-2 pr-3">Name</th><th class="py-2 pr-3">Email</th><th class="py-2 pr-3">Role</th><th class="py-2 pr-3">Status</th><th></th></tr></thead>
+<thead><tr class="text-left text-slate-500 border-b"><th class="py-2 pr-3">Name</th><th class="py-2 pr-3">Email</th><th class="py-2 pr-3">Factory</th><th class="py-2 pr-3">Role</th><th class="py-2 pr-3">Status</th><th></th></tr></thead>
 <tbody>
 @foreach($users as $u)
 <tr class="border-b border-slate-50">
     <td class="py-2 pr-3">{{ $u->name }}</td>
     <td class="py-2 pr-3">{{ $u->email }}</td>
+    <td class="py-2 pr-3">{{ $u->factory->name ?? 'All (Super Admin)' }}</td>
     <td class="py-2 pr-3">
         <form method="POST" action="{{ route('users.update',$u) }}" class="inline-flex items-center gap-2">
         @csrf @method('PUT')
         <input type="hidden" name="name" value="{{ $u->name }}"><input type="hidden" name="email" value="{{ $u->email }}">
+        <input type="hidden" name="factory_id" value="{{ $u->factory_id }}">
         <select name="role_id" onchange="this.form.submit()" class="rounded border border-slate-300 text-xs px-2 py-1">
         @foreach($roles as $r)<option value="{{ $r->id }}" @selected($u->role_id==$r->id)>{{ $r->name }}</option>@endforeach
         </select>

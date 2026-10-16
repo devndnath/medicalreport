@@ -1,5 +1,7 @@
 @php
 $reportNav = [
+    'reports.usage' => 'Usage Report',
+    'reports.receive' => 'Purchase/Receive Report',
     'reports.purchase-expense' => 'Purchase Expense',
     'reports.employee-expense' => 'Employee Expense',
     'reports.department-expense' => 'Department Expense',

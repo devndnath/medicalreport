@@ -9,6 +9,7 @@ use App\Models\MedicineIssueItem;
 use App\Models\MedicineIssueVoucher;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Support\CurrentFactory;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +70,7 @@ class DashboardController extends Controller
         $recentActivity = DB::table('stock_transactions')
             ->join('medicines', 'medicines.id', '=', 'stock_transactions.medicine_id')
             ->select('stock_transactions.*', 'medicines.name as medicine_name')
+            ->when(CurrentFactory::id(), fn ($q, $fid) => $q->where('stock_transactions.factory_id', $fid))
             ->orderByDesc('stock_transactions.created_at')
             ->limit(20)->get();
 

@@ -11,6 +11,13 @@
 <select name="role_id" required class="w-full rounded-lg border border-slate-300 text-sm px-3 py-2">
 @foreach($roles as $r)<option value="{{ $r->id }}">{{ $r->name }}</option>@endforeach
 </select></div>
+@if(!empty($factories))
+<div><label class="block text-xs text-slate-500 mb-1">Factory (leave blank for Super Admin)</label>
+<select name="factory_id" class="w-full rounded-lg border border-slate-300 text-sm px-3 py-2">
+<option value="">—</option>
+@foreach($factories as $f)<option value="{{ $f->id }}">{{ $f->name }}</option>@endforeach
+</select></div>
+@endif
 <div class="col-span-2"><button class="bg-accent-500 text-white text-sm px-5 py-2.5 rounded-lg">Create User</button></div>
 </form>
 </x-card>

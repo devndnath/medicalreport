@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Factory;
 use App\Models\Medicine;
 use App\Models\MedicineCategory;
 use Illuminate\Database\Seeder;
@@ -14,15 +15,24 @@ class MedicineSeeder extends Seeder
      * split into name/strength and given a sensible dosage form, base
      * unit, and category. No purchase price is set here — prices are
      * entered through the opening-stock/purchase screens, never invented.
+     * Each factory keeps its own separate copy of this list, editable
+     * independently from here on.
      */
     public function run(): void
     {
-        $tablet = MedicineCategory::where('name', 'Tablet/Capsule')->first();
-        $syrup = MedicineCategory::where('name', 'Syrup')->first();
-        $topical = MedicineCategory::where('name', 'Topical (Gel/Cream)')->first();
-        $drop = MedicineCategory::where('name', 'Drop')->first();
-        $liquid = MedicineCategory::where('name', 'Liquid/Antiseptic')->first();
-        $supply = MedicineCategory::where('name', 'First-Aid Supply')->first();
+        foreach (Factory::orderBy('id')->get() as $factory) {
+            $this->seedForFactory($factory);
+        }
+    }
+
+    protected function seedForFactory(Factory $factory): void
+    {
+        $tablet = MedicineCategory::where('factory_id', $factory->id)->where('name', 'Tablet/Capsule')->first();
+        $syrup = MedicineCategory::where('factory_id', $factory->id)->where('name', 'Syrup')->first();
+        $topical = MedicineCategory::where('factory_id', $factory->id)->where('name', 'Topical (Gel/Cream)')->first();
+        $drop = MedicineCategory::where('factory_id', $factory->id)->where('name', 'Drop')->first();
+        $liquid = MedicineCategory::where('factory_id', $factory->id)->where('name', 'Liquid/Antiseptic')->first();
+        $supply = MedicineCategory::where('factory_id', $factory->id)->where('name', 'First-Aid Supply')->first();
 
         $items = [
             ['name' => 'Napa', 'strength' => '500mg', 'dosage_form' => 'tablet', 'unit' => 'tablet', 'category_id' => $tablet->id],
@@ -52,8 +62,9 @@ class MedicineSeeder extends Seeder
 
         foreach ($items as $item) {
             Medicine::firstOrCreate(
-                ['name' => $item['name'], 'strength' => $item['strength'], 'dosage_form' => $item['dosage_form']],
+                ['factory_id' => $factory->id, 'name' => $item['name'], 'strength' => $item['strength'], 'dosage_form' => $item['dosage_form']],
                 [
+                    'factory_id' => $factory->id,
                     'sku' => Str::upper(Str::slug(Str::substr($item['name'], 0, 10), '')).'-'.random_int(1000, 9999),
                     'medicine_category_id' => $item['category_id'],
                     'base_unit' => $item['unit'],

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,10 +10,10 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class StockTransaction extends Model
 {
-    use HasFactory;
+    use BelongsToFactory, HasFactory;
 
     protected $fillable = [
-        'transaction_number', 'transaction_date', 'transaction_type', 'medicine_id',
+        'factory_id', 'transaction_number', 'transaction_date', 'transaction_type', 'medicine_id',
         'medicine_batch_id', 'quantity_in', 'quantity_out', 'running_balance',
         'unit_cost', 'transaction_value', 'cost_unavailable', 'reference_type',
         'reference_id', 'is_reversed', 'reversed_by_transaction_id', 'user_id', 'remarks',

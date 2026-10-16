@@ -49,12 +49,13 @@
                     ['label' => 'Reports', 'route' => 'reports.purchase-expense', 'icon' => '📈'],
                     ['label' => 'Import Workbook', 'route' => 'import.create', 'icon' => '📥'],
                     ['label' => 'User Management', 'route' => 'users.index', 'icon' => '🔐'],
+                    ['label' => 'Factories', 'route' => 'factories.index', 'icon' => '🏭', 'super_admin_only' => true],
                     ['label' => 'Audit Logs', 'route' => 'audit-logs.index', 'icon' => '🕵️'],
                     ['label' => 'Settings', 'route' => 'settings.index', 'icon' => '⚙️'],
                 ];
             @endphp
             @foreach($nav as $item)
-                @if(\Illuminate\Support\Facades\Route::has($item['route']))
+                @if(\Illuminate\Support\Facades\Route::has($item['route']) && (empty($item['super_admin_only']) || auth()->user()?->isSuperAdmin()))
                     <a href="{{ route($item['route']) }}"
                        class="flex items-center gap-3 px-5 py-2.5 mx-2 rounded-lg transition
                        {{ request()->routeIs(explode('.', $item['route'])[0].'.*') || request()->routeIs($item['route']) ? 'bg-white/10 text-white font-medium' : 'hover:bg-white/5 text-slate-300' }}">
@@ -78,6 +79,19 @@
             </div>
             <div class="flex items-center gap-4">
                 @auth
+                    @if(auth()->user()->isSuperAdmin())
+                        <form method="POST" action="{{ route('factories.switch') }}" class="flex items-center gap-2">
+                            @csrf
+                            <label class="text-xs text-slate-500">Viewing factory:</label>
+                            <select name="factory_id" onchange="this.form.submit()" class="rounded-lg border border-slate-300 text-sm px-2 py-1.5">
+                                @foreach(\App\Models\Factory::orderBy('name')->get() as $f)
+                                    <option value="{{ $f->id }}" @selected(\App\Support\CurrentFactory::id() === $f->id)>{{ $f->name }}</option>
+                                @endforeach
+                            </select>
+                        </form>
+                    @elseif(auth()->user()->factory)
+                        <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{{ auth()->user()->factory->name }}</span>
+                    @endif
                     <div class="text-right hidden sm:block">
                         <p class="text-sm font-medium text-slate-800">{{ auth()->user()->name }}</p>
                         <p class="text-xs text-slate-500">{{ auth()->user()->role->name ?? 'User' }}</p>

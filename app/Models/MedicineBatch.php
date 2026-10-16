@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFactory;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,10 +10,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MedicineBatch extends Model
 {
-    use HasFactory;
+    use BelongsToFactory, HasFactory;
 
     protected $fillable = [
-        'medicine_id', 'purchase_item_id', 'batch_number', 'expiry_date',
+        'factory_id', 'medicine_id', 'purchase_item_id', 'batch_number', 'expiry_date',
         'received_date', 'received_quantity', 'remaining_quantity', 'unit_cost',
         'cost_unavailable', 'status', 'is_opening_balance', 'remarks',
     ];

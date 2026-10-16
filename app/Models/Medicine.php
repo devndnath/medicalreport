@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,10 +11,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Medicine extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BelongsToFactory, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'sku', 'name', 'generic_name', 'strength', 'dosage_form',
+        'factory_id', 'sku', 'name', 'generic_name', 'strength', 'dosage_form',
         'medicine_category_id', 'base_unit', 'purchase_unit', 'issue_unit',
         'units_per_purchase_pack', 'manufacturer', 'preferred_supplier_id',
         'default_purchase_price', 'minimum_stock_level', 'reorder_level',

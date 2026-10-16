@@ -14,12 +14,130 @@ use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
+    /**
+     * @return array{0: Carbon, 1: Carbon, 2: string} [from, to, preset]
+     */
     protected function period(Request $request): array
     {
-        $from = $request->filled('from') ? Carbon::parse($request->from)->startOfDay() : Carbon::now()->startOfMonth();
-        $to = $request->filled('to') ? Carbon::parse($request->to)->endOfDay() : Carbon::now()->endOfDay();
+        $preset = $request->get('period', $request->filled('from') || $request->filled('to') ? 'custom' : 'this_month');
+        $today = Carbon::today();
 
-        return [$from, $to];
+        [$from, $to] = match ($preset) {
+            'today' => [$today->copy()->startOfDay(), $today->copy()->endOfDay()],
+            'this_week' => [$today->copy()->startOfWeek(), $today->copy()->endOfWeek()],
+            'this_month' => [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()],
+            default => [
+                $request->filled('from') ? Carbon::parse($request->from)->startOfDay() : $today->copy()->startOfMonth(),
+                $request->filled('to') ? Carbon::parse($request->to)->endOfDay() : $today->copy()->endOfDay(),
+            ],
+        };
+
+        return [$from, $to, $preset];
+    }
+
+    /**
+     * Unified Usage Report: who/what consumed medicine, grouped by
+     * Employee, Department, or Medicine, over Today / This Week / This
+     * Month / a custom date range — with a day-by-day breakdown inside
+     * whatever period is chosen.
+     */
+    public function usageReport(Request $request)
+    {
+        [$from, $to, $preset] = $this->period($request);
+        $groupBy = $request->get('group_by', 'employee');
+
+        $items = MedicineIssueItem::with(['medicine', 'voucher.employee.department'])
+            ->whereHas('voucher', fn ($q) => $q->where('status', 'posted')->whereBetween('issued_at', [$from, $to]))
+            ->get();
+
+        $rows = match ($groupBy) {
+            'department' => $items->groupBy(fn ($i) => $i->voucher->employee->department_id ?? 0)->map(fn ($g) => [
+                'label' => $g->first()->voucher->employee->department->name ?? 'Unassigned',
+                'quantity' => $g->sum('base_unit_quantity'),
+                'cost' => $g->where('cost_unavailable', false)->sum('total_cost'),
+                'has_cost_unavailable' => $g->where('cost_unavailable', true)->isNotEmpty(),
+                'voucher_count' => $g->pluck('medicine_issue_voucher_id')->unique()->count(),
+            ])->sortByDesc('cost'),
+            'medicine' => $items->groupBy('medicine_id')->map(fn ($g) => [
+                'label' => $g->first()->medicine->displayName(),
+                'quantity' => $g->sum('base_unit_quantity'),
+                'cost' => $g->where('cost_unavailable', false)->sum('total_cost'),
+                'has_cost_unavailable' => $g->where('cost_unavailable', true)->isNotEmpty(),
+                'voucher_count' => $g->pluck('medicine_issue_voucher_id')->unique()->count(),
+            ])->sortByDesc('cost'),
+            default => $items->groupBy(fn ($i) => $i->voucher->employee_id)->map(fn ($g) => [
+                'label' => $g->first()->voucher->employee->name ?? 'Unknown',
+                'sub_label' => $g->first()->voucher->employee->department->name ?? null,
+                'quantity' => $g->sum('base_unit_quantity'),
+                'cost' => $g->where('cost_unavailable', false)->sum('total_cost'),
+                'has_cost_unavailable' => $g->where('cost_unavailable', true)->isNotEmpty(),
+                'voucher_count' => $g->pluck('medicine_issue_voucher_id')->unique()->count(),
+            ])->sortByDesc('cost'),
+        };
+
+        $daily = $items->groupBy(fn ($i) => $i->voucher->issued_at->toDateString())
+            ->map(fn ($g, $date) => [
+                'date' => $date,
+                'quantity' => $g->sum('base_unit_quantity'),
+                'cost' => $g->where('cost_unavailable', false)->sum('total_cost'),
+            ])->sortKeys();
+
+        $totals = [
+            'quantity' => $items->sum('base_unit_quantity'),
+            'cost' => $items->where('cost_unavailable', false)->sum('total_cost'),
+            'voucher_count' => $items->pluck('medicine_issue_voucher_id')->unique()->count(),
+            'has_cost_unavailable' => $items->where('cost_unavailable', true)->isNotEmpty(),
+        ];
+
+        return view('reports.usage', compact('rows', 'daily', 'totals', 'from', 'to', 'preset', 'groupBy'));
+    }
+
+    /**
+     * Unified Purchase/Receive Report: everything received into stock —
+     * from a supplier, or handed over internally by Store/Accounts —
+     * over Today / This Week / This Month / a custom date range, with a
+     * day-by-day breakdown and a split by source and by medicine.
+     */
+    public function receiveReport(Request $request)
+    {
+        [$from, $to, $preset] = $this->period($request);
+
+        $purchases = Purchase::with(['supplier', 'items.medicine'])
+            ->where('status', 'confirmed')
+            ->whereBetween('purchase_date', [$from, $to])
+            ->get();
+
+        $bySource = $purchases->groupBy('source_type')->map(fn ($g, $type) => [
+            'label' => match ($type) {
+                'store' => 'Store',
+                'accounts' => 'Accounts',
+                default => 'Supplier',
+            },
+            'count' => $g->count(),
+            'total' => $g->sum('grand_total'),
+        ])->sortByDesc('total');
+
+        $byMedicine = $purchases->flatMap->items->groupBy('medicine_id')->map(fn ($rows) => [
+            'medicine' => $rows->first()->medicine,
+            'quantity' => $rows->sum('base_unit_quantity'),
+            'cost' => $rows->sum('line_total'),
+        ])->sortByDesc('cost');
+
+        $daily = $purchases->groupBy(fn ($p) => $p->purchase_date->toDateString())
+            ->map(fn ($g, $date) => [
+                'date' => $date,
+                'count' => $g->count(),
+                'total' => $g->sum('grand_total'),
+            ])->sortKeys();
+
+        $totals = [
+            'count' => $purchases->count(),
+            'total' => $purchases->sum('grand_total'),
+            'paid' => $purchases->sum('payment_amount'),
+            'outstanding' => $purchases->sum('outstanding_amount'),
+        ];
+
+        return view('reports.receive', compact('bySource', 'byMedicine', 'daily', 'totals', 'from', 'to', 'preset'));
     }
 
     // 9A. Purchase Expense Report
@@ -32,8 +150,8 @@ class ReportController extends Controller
             ->whereBetween('purchase_date', [$from, $to])
             ->orderBy('purchase_date')->get();
 
-        $bySupplier = $purchases->groupBy('supplier_id')->map(fn ($rows) => [
-            'supplier' => $rows->first()->supplier,
+        $bySupplier = $purchases->groupBy(fn ($p) => $p->sourceLabel())->map(fn ($rows) => [
+            'label' => $rows->first()->sourceLabel(),
             'total' => $rows->sum('grand_total'),
         ])->sortByDesc('total');
 

@@ -2,16 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StockAdjustment extends Model
 {
-    use HasFactory;
+    use BelongsToFactory, HasFactory;
 
     protected $fillable = [
-        'adjustment_number', 'adjustment_date', 'medicine_id', 'medicine_batch_id',
+        'factory_id', 'adjustment_number', 'adjustment_date', 'medicine_id', 'medicine_batch_id',
         'direction', 'reason', 'quantity', 'approved_by', 'remarks',
     ];
 

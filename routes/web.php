@@ -5,6 +5,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\FactoryController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\IssueController;
 use App\Http\Controllers\MedicineCategoryController;
@@ -31,6 +32,9 @@ Route::middleware('auth')->group(function () {
 
     // All authenticated roles (including read-only Management) can view the dashboard.
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Super Admin switches which single factory they are currently viewing.
+    Route::post('/switch-factory', [FactoryController::class, 'switch'])->name('factories.switch');
 
     // ---- Admin + Store Officer: master data & day-to-day operations ----
     Route::middleware('role:admin,store_officer')->group(function () {
@@ -82,6 +86,8 @@ Route::middleware('auth')->group(function () {
 
     // ---- Reports: Admin, Accounts and Management (read-only) can all view ----
     Route::middleware('role:admin,accounts,management,store_officer')->prefix('reports')->name('reports.')->group(function () {
+        Route::get('usage', [ReportController::class, 'usageReport'])->name('usage');
+        Route::get('receive', [ReportController::class, 'receiveReport'])->name('receive');
         Route::get('purchase-expense', [ReportController::class, 'purchaseExpense'])->name('purchase-expense');
         Route::get('employee-expense', [ReportController::class, 'employeeExpense'])->name('employee-expense');
         Route::get('department-expense', [ReportController::class, 'departmentExpense'])->name('department-expense');
@@ -102,5 +108,12 @@ Route::middleware('auth')->group(function () {
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
         Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
         Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
+    });
+
+    // ---- Super Admin only: manage the factories themselves ----
+    Route::middleware('role:super_admin')->group(function () {
+        Route::get('factories', [FactoryController::class, 'index'])->name('factories.index');
+        Route::post('factories', [FactoryController::class, 'store'])->name('factories.store');
+        Route::put('factories/{factory}', [FactoryController::class, 'update'])->name('factories.update');
     });
 });

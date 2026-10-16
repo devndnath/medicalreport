@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,10 +11,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BelongsToFactory, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'employee_code', 'name', 'department_id', 'designation',
+        'factory_id', 'employee_code', 'name', 'department_id', 'designation',
         'employment_status', 'phone', 'joining_date', 'remarks',
         'needs_id_confirmation',
     ];

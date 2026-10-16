@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Support\CurrentFactory;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class DepartmentController extends Controller
 {
@@ -15,7 +17,7 @@ class DepartmentController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:191|unique:departments,name',
+            'name' => ['required', 'string', 'max:191', Rule::unique('departments', 'name')->where('factory_id', CurrentFactory::id())],
             'legacy_label' => 'nullable|string|max:191',
             'remarks' => 'nullable|string',
         ]);
@@ -27,7 +29,7 @@ class DepartmentController extends Controller
     public function update(Request $request, Department $department)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:191|unique:departments,name,'.$department->id,
+            'name' => ['required', 'string', 'max:191', Rule::unique('departments', 'name')->where('factory_id', CurrentFactory::id())->ignore($department->id)],
             'legacy_label' => 'nullable|string|max:191',
             'is_active' => 'boolean',
             'remarks' => 'nullable|string',

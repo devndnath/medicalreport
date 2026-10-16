@@ -21,7 +21,9 @@ class PurchaseService
     public function createDraft(array $purchaseData, array $items): Purchase
     {
         return DB::transaction(function () use ($purchaseData, $items) {
-            $this->guardDuplicateInvoice($purchaseData['supplier_id'], $purchaseData['supplier_invoice_number'] ?? null);
+            if (($purchaseData['source_type'] ?? 'supplier') === 'supplier') {
+                $this->guardDuplicateInvoice($purchaseData['supplier_id'] ?? null, $purchaseData['supplier_invoice_number'] ?? null);
+            }
 
             $purchase = Purchase::create([
                 ...$purchaseData,
@@ -105,9 +107,9 @@ class PurchaseService
         $purchase->save();
     }
 
-    protected function guardDuplicateInvoice(int $supplierId, ?string $invoiceNumber): void
+    protected function guardDuplicateInvoice(?int $supplierId, ?string $invoiceNumber): void
     {
-        if (! $invoiceNumber) {
+        if (! $invoiceNumber || ! $supplierId) {
             return;
         }
 

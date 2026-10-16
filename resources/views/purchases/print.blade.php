@@ -14,7 +14,7 @@ h1{font-size:16px;} .muted{color:#64748b;}
 <body>
 <h1>Purchase Order — {{ $purchase->purchase_number }}</h1>
 <p class="muted">Factory Medicine Store · {{ $purchase->purchase_date->format('d-m-Y') }}</p>
-<p><strong>Supplier:</strong> {{ $purchase->supplier->name }} &nbsp; <strong>Invoice #:</strong> {{ $purchase->supplier_invoice_number ?? '—' }}</p>
+<p><strong>Received From:</strong> {{ $purchase->sourceLabel() }} &nbsp; <strong>Invoice #:</strong> {{ $purchase->supplier_invoice_number ?? '—' }}</p>
 
 <table>
 <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Qty</th><th>Unit Price</th><th>Line Total</th></tr></thead>

@@ -28,6 +28,7 @@ class StockService
             $date = $date ?? now()->toDateString();
 
             $batch = MedicineBatch::create([
+                'factory_id' => $medicine->factory_id,
                 'medicine_id' => $medicine->id,
                 'batch_number' => $batchNumber ?? 'OPENING-'.$medicine->sku,
                 'expiry_date' => null,
@@ -50,6 +51,7 @@ class StockService
     {
         return DB::transaction(function () use ($item) {
             $batch = MedicineBatch::create([
+                'factory_id' => $item->medicine->factory_id,
                 'medicine_id' => $item->medicine_id,
                 'purchase_item_id' => $item->id,
                 'batch_number' => $item->batch_number,
@@ -214,6 +216,7 @@ class StockService
         $closing = $medicine->currentStock() + $quantityIn - $quantityOut;
 
         return StockTransaction::create([
+            'factory_id' => $medicine->factory_id,
             'transaction_number' => 'TXN-'.now()->format('Ymd').'-'.Str::upper(Str::random(6)),
             'transaction_date' => $date ?? now()->toDateString(),
             'transaction_type' => $type,

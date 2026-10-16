@@ -2,18 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MedicineReturn extends Model
 {
-    use HasFactory;
+    use BelongsToFactory, HasFactory;
 
     protected $table = 'medicine_returns';
 
     protected $fillable = [
-        'return_number', 'return_date', 'medicine_issue_item_id', 'medicine_id',
+        'factory_id', 'return_number', 'return_date', 'medicine_issue_item_id', 'medicine_id',
         'medicine_batch_id', 'quantity', 'condition', 'received_by', 'reason',
     ];
 

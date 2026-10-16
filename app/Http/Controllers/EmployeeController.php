@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\Employee;
+use App\Support\CurrentFactory;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
 {
@@ -62,7 +64,12 @@ class EmployeeController extends Controller
     protected function validateData(Request $request, ?int $ignoreId = null): array
     {
         return $request->validate([
-            'employee_code' => 'required|string|max:50|unique:employees,employee_code'.($ignoreId ? ",$ignoreId" : ''),
+            'employee_code' => [
+                'required', 'string', 'max:50',
+                Rule::unique('employees', 'employee_code')
+                    ->where('factory_id', CurrentFactory::id())
+                    ->ignore($ignoreId),
+            ],
             'name' => 'required|string|max:191',
             'department_id' => 'nullable|exists:departments,id',
             'designation' => 'nullable|string|max:191',

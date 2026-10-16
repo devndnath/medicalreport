@@ -7,14 +7,15 @@ Excel-based workflow it replaces.
 
 ## 1. What's included (Phase 1 — core system, built and working)
 
-- **Database**: 20+ normalized MySQL tables (migrations in `database/migrations`) — medicines, batches, stock ledger, purchases, issue vouchers, employees, departments, suppliers, audit logs, settings, and an import-tracking schema.
+- **Multi-factory**: every factory (medicines, employees, departments, suppliers, purchases/receives, stock) is completely separate. A **Super Admin** switches between factories one at a time (never merged) with a switcher in the top bar; every other role is permanently tied to the one factory they were created in and cannot see or reach the other factory's data (`app/Models/Concerns/BelongsToFactory.php`, `app/Http/Middleware/SetCurrentFactory.php`). Manage factories themselves at **Factories** (Super Admin only).
+- **Database**: 20+ normalized MySQL tables (migrations in `database/migrations`) — medicines, batches, stock ledger, purchases, issue vouchers, employees, departments, suppliers, audit logs, settings, and an import-tracking schema — each factory-scoped row carrying its own `factory_id`.
 - **Inventory engine** (`app/Services/StockService.php`): every stock movement (opening balance, purchase receipt, FIFO issue, return, adjustment, damage/expiry write-off) posts through one service into a single `stock_transactions` ledger. FIFO valuation is implemented and documented in `config/erp.php`.
-- **Purchasing** (`app/Services/PurchaseService.php`): draft → confirm workflow, correct line/grand-total math with discount/tax/free-quantity handling, duplicate-invoice warning, stock is only affected on confirm.
+- **Stock Receive** (`app/Services/PurchaseService.php`, labelled "Purchases" in routes for continuity): draft → confirm workflow, correct line/grand-total math with discount/tax/free-quantity handling, stock is only affected on confirm. Stock can be received from an outside **Supplier** (with duplicate-invoice warning) or handed over internally by the factory's own **Store** or **Accounts** — no supplier record is required for the latter two; just who released it.
 - **Medicine issuing** (`app/Services/IssueService.php`): multi-line vouchers, FIFO batch consumption, stock-availability pre-check before posting, expired batches blocked, controlled reversal (never silent edits).
 - **Legacy workbook import** (`app/Services/LegacyWorkbookImportService.php` + Import screens): upload → parse → validated preview with error/duplicate flags → explicit confirm-and-commit. The original workbook is stored untouched. No price, quantity, or employee ID is ever invented — see `docs` below.
-- **Dashboard**: real KPIs and charts (Chart.js) computed from the database with date-range filters.
-- **Reports**: Purchase Expense, Employee-wise Expense (+PDF export), Department-wise Expense, Medicine-wise Consumption (+Excel export), Daily/Monthly Usage (recreating and improving the original workbook reports), Highest-Cost Medicines, Supplier Performance, Inventory Valuation.
-- **RBAC**: Admin, Medical Room/Store Officer, Accounts, Management (read-only) — enforced via route middleware (`app/Http/Middleware/EnsureUserHasRole.php`).
+- **Dashboard**: real KPIs and charts (Chart.js) computed from the database with date-range filters, scoped to the current factory.
+- **Reports**: a flexible **Usage Report** (group by Employee, Department, or Medicine; Today/This Week/This Month/custom date, with a day-by-day breakdown) and a flexible **Purchase/Receive Report** (by source — Supplier/Store/Accounts — and by medicine, same period controls), plus the original Purchase Expense, Employee-wise Expense (+PDF export), Department-wise Expense, Medicine-wise Consumption (+Excel export), Daily/Monthly Usage, Highest-Cost Medicines, Supplier Performance, and Inventory Valuation reports.
+- **RBAC**: Super Admin (all factories, one at a time), Admin, Medical Room/Store Officer, Accounts, Management (read-only) — enforced via route middleware (`app/Http/Middleware/EnsureUserHasRole.php`).
 - **Audit log**: model-level (create/update/delete on financial & inventory models) and request-level logging.
 - **Tests**: `tests/Feature/FifoCostingTest.php` and `PurchaseCalculationTest.php` cover the FIFO costing, insufficient-stock, expired-batch, and purchase-math acceptance criteria.
 
@@ -41,13 +42,17 @@ php artisan serve
 ```
 
 The seeder creates:
-- 4 roles (Admin, Store Officer, Accounts, Management)
-- 1 admin login: **admin@factory.local / ChangeMe!123** — change this password immediately after first login.
-- Departments and the 23 medicines found in the legacy workbook's Medicine List (unpriced — see `claude/workbook-analysis-and-schema.md` for why).
+- 5 roles (Super Admin, Admin, Store Officer, Accounts, Management)
+- 2 factories ("Factory 1" / code `F1`, "Factory 2" / code `F2`) — rename or add more under **Factories** once logged in.
+- 1 Super Admin login: **superadmin@factory.local / ChangeMe!123** — can switch between both factories.
+- 1 Admin login per factory: **admin.f1@factory.local** and **admin.f2@factory.local**, same password — change all of these immediately after first login.
+- Departments and the 23 medicines found in the legacy workbook's Medicine List, seeded identically into **both** factories as a starting point (unpriced — see `claude/workbook-analysis-and-schema.md` for why). Edit either factory's copy independently from here on — they do not stay in sync.
+
+> ⚠️ **Upgrading an existing installation to multi-factory**: this is a structural change (every row now belongs to one factory). If you already have real data in an older copy of this app, back up your database first, then run `php artisan migrate` (not `migrate:fresh`) and manually assign each existing row's `factory_id` to whichever factory it belongs to before relying on the app — the migration adds the column but cannot guess which factory your existing rows belong to. For a fresh/non-production setup, `php artisan migrate:fresh --seed` is simplest.
 
 ### Importing your historical data
 
-Log in as Admin or Store Officer → **Import Workbook** → upload the original `Medicine Report.xlsx`. Review the preview (valid/error/duplicate counts per row) before clicking **Confirm & Commit**. Rows with missing dates, unmapped medicines, or unparseable quantities are never committed — fix them in a corrected re-upload or handle them manually afterward.
+Log in as Admin or Store Officer → **Import Workbook** → upload the original `Medicine Report.xlsx`. Review the preview (valid/error/duplicate counts per row) before clicking **Confirm & Commit**. Rows with missing dates, unmapped medicines, or unparseable quantities are never committed — fix them in a corrected re-upload or handle them manually afterward. The import always lands in whichever factory you're currently viewing (the switcher, top right, for a Super Admin — or just your own factory otherwise) — switch first if you meant the other factory.
 
 ## 4. Deployment guide (production)
 
@@ -68,7 +73,7 @@ Log in as Admin or Store Officer → **Import Workbook** → upload the original
 ## 6. User guide (Medical Room / Store Officer)
 
 1. **Daily issuing**: Medicine Issue → + Issue Medicine → pick the employee (name/department auto-fills), add each medicine with quantity, submit. Stock deducts immediately (FIFO). Print the voucher for the receiver's signature.
-2. **Receiving stock**: Purchases → + New Purchase → enter supplier, invoice #, and each medicine's batch/expiry/quantity/price → Save as Draft → review → **Confirm & Receive Stock** (this is the only action that increases stock from a purchase).
+2. **Receiving stock**: Purchases → + New Receive → choose where it came from (**Supplier**, with invoice #; or **Store**/**Accounts**, with just who released it) and each medicine's batch/expiry/quantity/price → Save as Draft → review → **Confirm & Receive Stock** (this is the only action that increases stock from a receive).
 3. **Returns**: if an employee returns unused, usable medicine, record it under Returns so it goes back into the correct batch.
 4. **Stock counts**: periodically do a physical count (Stock Ledger → Physical Counts → New Count), enter what you actually counted, then **Reconcile** to post the discrepancy as an adjustment with a reason.
 5. Watch the **Expiry Management** and **Low Stock** pages weekly.
@@ -78,6 +83,8 @@ Log in as Admin or Store Officer → **Import Workbook** → upload the original
 - **Purchase cost** is what the factory paid suppliers. **Issue cost** is the value of medicine actually consumed. These are deliberately shown separately on the dashboard and in reports — purchasing is a procurement outflow, consumption is the real expense driver.
 - Any number shown as **"Cost unavailable"** means the historical data imported from the old Excel workbook had no purchase price recorded for that stock — the system never fabricates a number here. Once purchases are entered at current prices, future issues will cost correctly under FIFO.
 - **Employee-wise** and **Department-wise Expense** reports are the two to review monthly for medical cost control; **Inventory Valuation** is the figure for balance-sheet/asset discussions.
+- **Usage Report** and **Purchase/Receive Report** (top of the Reports menu) are the quickest day-to-day views: pick Today / This Week / This Month, or a custom range, and (for Usage) group by Employee, Department, or Medicine. Both include a day-by-day breakdown for the period you pick.
+- Every report only ever shows the factory you're currently viewing. A Super Admin compares the two factories by switching the top-right selector and re-opening the report — figures are never added together across factories.
 
 ## 8. Known environment limitation this build was created under
 

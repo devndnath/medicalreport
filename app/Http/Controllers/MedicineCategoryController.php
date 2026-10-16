@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\MedicineCategory;
+use App\Support\CurrentFactory;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class MedicineCategoryController extends Controller
 {
@@ -15,7 +17,7 @@ class MedicineCategoryController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:191|unique:medicine_categories,name',
+            'name' => ['required', 'string', 'max:191', Rule::unique('medicine_categories', 'name')->where('factory_id', CurrentFactory::id())],
             'description' => 'nullable|string',
         ]);
         MedicineCategory::create($data);
@@ -26,7 +28,7 @@ class MedicineCategoryController extends Controller
     public function update(Request $request, MedicineCategory $category)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:191|unique:medicine_categories,name,'.$category->id,
+            'name' => ['required', 'string', 'max:191', Rule::unique('medicine_categories', 'name')->where('factory_id', CurrentFactory::id())->ignore($category->id)],
             'description' => 'nullable|string',
         ]);
         $category->update($data);

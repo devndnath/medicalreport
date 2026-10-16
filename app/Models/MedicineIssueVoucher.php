@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,10 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MedicineIssueVoucher extends Model
 {
-    use HasFactory;
+    use BelongsToFactory, HasFactory;
 
     protected $fillable = [
-        'voucher_number', 'issued_at', 'employee_id', 'department_id', 'symptoms',
+        'factory_id', 'voucher_number', 'issued_at', 'employee_id', 'department_id', 'symptoms',
         'issued_by', 'receiver_acknowledged', 'total_cost', 'has_cost_unavailable_lines',
         'status', 'reversed_by_voucher_id', 'remarks',
     ];

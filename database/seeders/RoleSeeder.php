@@ -10,6 +10,7 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         $roles = [
+            ['key' => 'super_admin', 'name' => 'Super Admin (all factories)'],
             ['key' => 'admin', 'name' => 'Admin'],
             ['key' => 'store_officer', 'name' => 'Medical Room / Store Officer'],
             ['key' => 'accounts', 'name' => 'Accounts'],

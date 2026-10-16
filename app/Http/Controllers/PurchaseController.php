@@ -18,6 +18,7 @@ class PurchaseController extends Controller
     {
         $purchases = Purchase::with('supplier')
             ->when($request->status, fn ($q, $v) => $q->where('status', $v))
+            ->when($request->source_type, fn ($q, $v) => $q->where('source_type', $v))
             ->when($request->supplier_id, fn ($q, $v) => $q->where('supplier_id', $v))
             ->when($request->from, fn ($q, $v) => $q->whereDate('purchase_date', '>=', $v))
             ->when($request->to, fn ($q, $v) => $q->whereDate('purchase_date', '<=', $v))
@@ -38,7 +39,9 @@ class PurchaseController extends Controller
     {
         $validated = $request->validate([
             'purchase_date' => 'required|date',
-            'supplier_id' => 'required|exists:suppliers,id',
+            'source_type' => 'required|in:supplier,store,accounts',
+            'supplier_id' => 'required_if:source_type,supplier|nullable|exists:suppliers,id',
+            'received_from' => 'nullable|string|max:191',
             'supplier_invoice_number' => 'nullable|string|max:100',
             'discount_amount' => 'nullable|numeric|min:0',
             'tax_amount' => 'nullable|numeric|min:0',
@@ -62,8 +65,10 @@ class PurchaseController extends Controller
             $purchase = $this->purchases->createDraft([
                 'purchase_number' => 'PO-'.now()->format('Ymd').'-'.Str::upper(Str::random(5)),
                 'purchase_date' => $validated['purchase_date'],
-                'supplier_id' => $validated['supplier_id'],
-                'supplier_invoice_number' => $validated['supplier_invoice_number'] ?? null,
+                'source_type' => $validated['source_type'],
+                'supplier_id' => $validated['source_type'] === 'supplier' ? $validated['supplier_id'] : null,
+                'received_from' => $validated['source_type'] === 'supplier' ? null : ($validated['received_from'] ?? null),
+                'supplier_invoice_number' => $validated['source_type'] === 'supplier' ? ($validated['supplier_invoice_number'] ?? null) : null,
                 'discount_amount' => $validated['discount_amount'] ?? 0,
                 'tax_amount' => $validated['tax_amount'] ?? 0,
                 'other_charges' => $validated['other_charges'] ?? 0,
@@ -74,7 +79,7 @@ class PurchaseController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('purchases.show', $purchase)->with('success', 'Purchase saved as draft. Confirm it to receive stock.');
+        return redirect()->route('purchases.show', $purchase)->with('success', 'Receipt saved as draft. Confirm it to receive stock.');
     }
 
     public function show(Purchase $purchase)

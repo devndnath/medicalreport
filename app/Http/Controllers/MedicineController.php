@@ -6,8 +6,10 @@ use App\Models\Medicine;
 use App\Models\MedicineCategory;
 use App\Models\Supplier;
 use App\Services\StockService;
+use App\Support\CurrentFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class MedicineController extends Controller
 {
@@ -118,7 +120,10 @@ class MedicineController extends Controller
             'prescription_required' => 'boolean',
             'status' => 'required|in:active,inactive',
             'remarks' => 'nullable|string',
-            'sku' => 'nullable|string|max:50|unique:medicines,sku'.($ignoreId ? ",$ignoreId" : ''),
+            'sku' => [
+                'nullable', 'string', 'max:50',
+                Rule::unique('medicines', 'sku')->where('factory_id', CurrentFactory::id())->ignore($ignoreId),
+            ],
         ]);
     }
 
