@@ -34,8 +34,14 @@ trait BelongsToFactory
         });
     }
 
-    public function factory(): BelongsTo
+    /**
+     * Named operatingFactory() rather than factory() because every model
+     * using this trait also uses Eloquent's own HasFactory trait (for
+     * test/database factories), whose static factory() method would
+     * otherwise collide with this relation and cause a fatal error.
+     */
+    public function operatingFactory(): BelongsTo
     {
-        return $this->belongsTo(Factory::class);
+        return $this->belongsTo(Factory::class, 'factory_id');
     }
 }

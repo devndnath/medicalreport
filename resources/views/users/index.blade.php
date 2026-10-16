@@ -28,7 +28,7 @@
 <tr class="border-b border-slate-50">
     <td class="py-2 pr-3">{{ $u->name }}</td>
     <td class="py-2 pr-3">{{ $u->email }}</td>
-    <td class="py-2 pr-3">{{ $u->factory->name ?? 'All (Super Admin)' }}</td>
+    <td class="py-2 pr-3">{{ $u->operatingFactory->name ?? 'All (Super Admin)' }}</td>
     <td class="py-2 pr-3">
         <form method="POST" action="{{ route('users.update',$u) }}" class="inline-flex items-center gap-2">
         @csrf @method('PUT')

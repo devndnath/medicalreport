@@ -18,7 +18,7 @@ class UserManagementController extends Controller
         // Admin sees this factory's users too (the current switcher
         // selection), plus the other Super Admin accounts, which belong
         // to no single factory and so are always listed.
-        $users = User::with(['role', 'factory'])
+        $users = User::with(['role', 'operatingFactory'])
             ->where(function ($q) {
                 $q->where('factory_id', CurrentFactory::id())
                     ->orWhereHas('role', fn ($r) => $r->where('key', 'super_admin'));

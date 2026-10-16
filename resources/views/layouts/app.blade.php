@@ -89,8 +89,8 @@
                                 @endforeach
                             </select>
                         </form>
-                    @elseif(auth()->user()->factory)
-                        <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{{ auth()->user()->factory->name }}</span>
+                    @elseif(auth()->user()->operatingFactory)
+                        <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{{ auth()->user()->operatingFactory->name }}</span>
                     @endif
                     <div class="text-right hidden sm:block">
                         <p class="text-sm font-medium text-slate-800">{{ auth()->user()->name }}</p>

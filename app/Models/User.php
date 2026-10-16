@@ -41,9 +41,11 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
-    public function factory(): BelongsTo
+    // Named operatingFactory(), not factory() — HasFactory's static
+    // factory() method (for test/database factories) owns that name.
+    public function operatingFactory(): BelongsTo
     {
-        return $this->belongsTo(Factory::class);
+        return $this->belongsTo(Factory::class, 'factory_id');
     }
 
     public function hasRole(string ...$keys): bool
