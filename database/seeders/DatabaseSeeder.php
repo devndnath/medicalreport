@@ -13,8 +13,11 @@ class DatabaseSeeder extends Seeder
             FactorySeeder::class,
             UserSeeder::class,
             DepartmentSeeder::class,
+            EmployeeSeeder::class,
             MedicineCategorySeeder::class,
             MedicineSeeder::class,
+            SupplierSeeder::class,
+            OpeningStockSeeder::class,
         ]);
     }
 }
