@@ -157,6 +157,19 @@ class StockService
         });
     }
 
+    /**
+     * Move stock outside the normal receipt/issue flow. Stock only exists
+     * in batches, so every adjustment changes real batches:
+     *
+     * - With a batch given, that batch is adjusted.
+     * - Without one (e.g. reconciling a physical count), an "out" is taken
+     *   from the active batches in FIFO order, and an "in" is added to the
+     *   most recently received usable batch (or to a new correction batch
+     *   if the medicine has none).
+     *
+     * One ledger row is posted per batch touched, so the ledger and the
+     * batches can never disagree.
+     */
     public function adjust(Medicine $medicine, ?MedicineBatch $batch, string $direction, float $quantity, string $reason, $reference = null, ?string $remarks = null): void
     {
         DB::transaction(function () use ($medicine, $batch, $direction, $quantity, $reason, $reference, $remarks) {
@@ -168,37 +181,99 @@ class StockService
             };
 
             if ($batch) {
-                if ($direction === 'in') {
-                    $batch->remaining_quantity += $quantity;
-                    if ($batch->status === 'depleted') {
-                        $batch->status = 'active';
-                    }
-                } else {
-                    if ($batch->remaining_quantity < $quantity) {
-                        throw new RuntimeException('Adjustment-out quantity exceeds batch remaining quantity.');
-                    }
-                    $batch->remaining_quantity -= $quantity;
-                    if (in_array($reason, ['damaged', 'expired'], true)) {
-                        $batch->status = $reason;
-                    } elseif ($batch->remaining_quantity <= 0) {
-                        $batch->status = 'depleted';
-                    }
-                }
-                $batch->save();
+                $this->adjustBatch($medicine, $type, $batch, $direction, $quantity, $reason, $reference, $remarks);
+
+                return;
             }
 
-            $this->postTransaction(
-                $medicine,
-                $type,
-                quantityIn: $direction === 'in' ? $quantity : 0,
-                quantityOut: $direction === 'out' ? $quantity : 0,
-                batch: $batch,
-                unitCost: $batch && ! $batch->cost_unavailable ? $batch->unit_cost : null,
-                costUnavailable: $batch?->cost_unavailable ?? true,
-                reference: $reference,
-                remarks: $remarks,
-            );
+            if ($direction === 'in') {
+                $target = $this->latestUsableBatch($medicine) ?? $this->createCorrectionBatch($medicine, $quantity);
+                $this->adjustBatch($medicine, $type, $target, 'in', $quantity, $reason, $reference, $remarks);
+
+                return;
+            }
+
+            $remaining = $quantity;
+            foreach ($medicine->activeBatchesFifo()->lockForUpdate()->get() as $candidate) {
+                if ($remaining <= 0) {
+                    break;
+                }
+
+                $take = min((float) $candidate->remaining_quantity, $remaining);
+                if ($take <= 0) {
+                    continue;
+                }
+
+                $this->adjustBatch($medicine, $type, $candidate, 'out', $take, $reason, $reference, $remarks);
+                $remaining -= $take;
+            }
+
+            if ($remaining > 0.0000001) {
+                throw new RuntimeException("Adjustment-out quantity exceeds available stock for {$medicine->displayName()} by {$remaining} {$medicine->base_unit}.");
+            }
         });
+    }
+
+    protected function adjustBatch(Medicine $medicine, string $type, MedicineBatch $batch, string $direction, float $quantity, string $reason, $reference, ?string $remarks): void
+    {
+        if ($direction === 'in') {
+            $batch->remaining_quantity += $quantity;
+            if ($batch->status === 'depleted') {
+                $batch->status = 'active';
+            }
+        } else {
+            if ($batch->remaining_quantity < $quantity) {
+                throw new RuntimeException('Adjustment-out quantity exceeds batch remaining quantity.');
+            }
+            $batch->remaining_quantity -= $quantity;
+
+            // Only a batch that has been written off completely changes status;
+            // removing a few damaged/expired units must not take the rest of
+            // the batch out of usable stock.
+            if ($batch->remaining_quantity <= 0) {
+                $batch->status = in_array($reason, ['damaged', 'expired'], true) ? $reason : 'depleted';
+            }
+        }
+        $batch->save();
+
+        $this->postTransaction(
+            $medicine,
+            $type,
+            quantityIn: $direction === 'in' ? $quantity : 0,
+            quantityOut: $direction === 'out' ? $quantity : 0,
+            batch: $batch,
+            unitCost: ! $batch->cost_unavailable ? $batch->unit_cost : null,
+            costUnavailable: (bool) $batch->cost_unavailable,
+            reference: $reference,
+            remarks: $remarks,
+        );
+    }
+
+    protected function latestUsableBatch(Medicine $medicine): ?MedicineBatch
+    {
+        return $medicine->batches()
+            ->where('status', 'active')
+            ->where(fn ($q) => $q->whereNull('expiry_date')->orWhere('expiry_date', '>=', now()->toDateString()))
+            ->orderByDesc('received_date')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /** A medicine with no usable batch gets a cost-unknown batch to hold stock found in a count. */
+    protected function createCorrectionBatch(Medicine $medicine, float $quantity): MedicineBatch
+    {
+        return MedicineBatch::create([
+            'factory_id' => $medicine->factory_id,
+            'medicine_id' => $medicine->id,
+            'batch_number' => 'ADJ-'.now()->format('Ymd').'-'.Str::upper(Str::random(4)),
+            'received_date' => now()->toDateString(),
+            'received_quantity' => $quantity,
+            'remaining_quantity' => 0, // adjustBatch() adds the quantity
+            'unit_cost' => 0,
+            'cost_unavailable' => true,
+            'status' => 'depleted',
+            'remarks' => 'Created by a stock adjustment; cost unknown.',
+        ]);
     }
 
     protected function postTransaction(
@@ -213,7 +288,9 @@ class StockService
         ?string $date = null,
         ?string $remarks = null,
     ): StockTransaction {
-        $closing = $medicine->currentStock() + $quantityIn - $quantityOut;
+        // Every caller updates the batch before posting, so the batches
+        // already reflect this movement; adding it again would double-count.
+        $closing = $medicine->currentStock();
 
         return StockTransaction::create([
             'factory_id' => $medicine->factory_id,
